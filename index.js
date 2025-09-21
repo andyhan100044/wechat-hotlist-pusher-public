@@ -1,16 +1,31 @@
 const axios = require('axios');
-const cron = require('node-cron');
 require('dotenv').config();
 
 class WechatHotListPusher {
     constructor() {
+        // 检查必要的环境变量
+        if (!process.env.WXPUSHER_APP_TOKEN) {
+            throw new Error('缺少必要的环境变量: WXPUSHER_APP_TOKEN');
+        }
+        if (!process.env.WXPUSHER_UID) {
+            throw new Error('缺少必要的环境变量: WXPUSHER_UID');
+        }
+        if (!process.env.TIANAPI_KEY) {
+            throw new Error('缺少必要的环境变量: TIANAPI_KEY');
+        }
+        
         this.wxpusherToken = process.env.WXPUSHER_APP_TOKEN;
         this.wxpusherUID = process.env.WXPUSHER_UID;
         this.tianapiKey = process.env.TIANAPI_KEY;
-        this.tianapiUrl = process.env.TIANAPI_URL;
-        this.pushHour = process.env.PUSH_HOUR || 9;
-        this.pushMinute = process.env.PUSH_MINUTE || 0;
+        this.tianapiUrl = process.env.TIANAPI_URL || 'https://apis.tianapi.com/wxhottopic/index';
+        this.pushHour = parseInt(process.env.PUSH_HOUR) || 9;
+        this.pushMinute = parseInt(process.env.PUSH_MINUTE) || 0;
         this.hotListCount = parseInt(process.env.HOT_LIST_COUNT) || 10;
+        
+        console.log('推送服务配置:');
+        console.log(`- 推送时间: ${this.pushHour}:${String(this.pushMinute).padStart(2, '0')}`);
+        console.log(`- 热搜数量: ${this.hotListCount}`);
+        console.log(`- API地址: ${this.tianapiUrl}`);
     }
 
     /**
@@ -27,7 +42,8 @@ class WechatHotListPusher {
             const response = await axios.post(this.tianapiUrl, params, {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
-                }
+                },
+                timeout: 10000 // 10秒超时
             });
 
             if (response.data.code === 200) {
@@ -99,11 +115,12 @@ class WechatHotListPusher {
             }, {
                 headers: {
                     'Content-Type': 'application/json'
-                }
+                },
+                timeout: 10000 // 10秒超时
             });
 
             if (response.data.success) {
-                console.log('消息发送成功:', response.data);
+                console.log('消息发送成功');
                 return true;
             } else {
                 console.error('消息发送失败:', response.data.msg);
@@ -127,25 +144,11 @@ class WechatHotListPusher {
         
         if (success) {
             console.log('热搜榜推送任务完成');
+            return true;
         } else {
             console.log('热搜榜推送任务失败');
+            return false;
         }
-    }
-
-    /**
-     * 启动定时任务
-     */
-    startScheduledTask() {
-        // 创建定时任务，每天指定时间执行
-        const cronExpression = `${this.pushMinute} ${this.pushHour} * * *`;
-        
-        console.log(`定时任务已启动，将在每天 ${this.pushHour}:${String(this.pushMinute).padStart(2, '0')} 执行推送`);
-        
-        cron.schedule(cronExpression, () => {
-            this.executePushTask();
-        }, {
-            timezone: 'Asia/Shanghai'
-        });
     }
 
     /**
@@ -153,34 +156,32 @@ class WechatHotListPusher {
      */
     async testPush() {
         console.log('执行测试推送...');
-        await this.executePushTask();
+        return await this.executePushTask();
     }
 }
 
 // 主程序
 async function main() {
-    const pusher = new WechatHotListPusher();
-    
-    // 检查命令行参数
-    const args = process.argv.slice(2);
-    
-    if (args.includes('--test')) {
-        // 测试模式
-        await pusher.testPush();
-    } else {
-        // 正常模式，启动定时任务
-        pusher.startScheduledTask();
+    try {
+        const pusher = new WechatHotListPusher();
         
-        console.log('微信热搜榜定时推送服务已启动');
-        console.log('按 Ctrl+C 停止服务');
+        // 检查命令行参数
+        const args = process.argv.slice(2);
         
-        // 保持程序运行
-        process.on('SIGINT', () => {
-            console.log('\n正在停止服务...');
-            process.exit(0);
-        });
+        if (args.includes('--test')) {
+            // 测试模式
+            const result = await pusher.testPush();
+            process.exit(result ? 0 : 1);
+        } else {
+            // 正常模式：直接执行推送任务
+            const result = await pusher.executePushTask();
+            process.exit(result ? 0 : 1);
+        }
+    } catch (error) {
+        console.error('程序执行出错:', error.message);
+        process.exit(1);
     }
 }
 
 // 启动程序
-main().catch(console.error);
+main();
