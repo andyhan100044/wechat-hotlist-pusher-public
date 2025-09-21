@@ -5,7 +5,7 @@ on:
     # 修正时间：北京时间9:00 (UTC 1:00)
     - cron: '0 1 * * *'
     # 修正时间：北京时间18:00 (UTC 10:00)
-    - cron: '24 13 * * *'
+    - cron: '55 13 * * *'
   workflow_dispatch:
     inputs:
       test_mode:
