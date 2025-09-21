@@ -1,0 +1,65 @@
+name: WeChat Hot List Push
+
+on:
+  schedule:
+    # 北京时间 9:00 (UTC 1:00)
+    - cron: '0 1 * * *'
+    
+    # 北京时间 18:00 (UTC 10:00)
+    - cron: '35 14 * * *'
+  
+  workflow_dispatch:
+    inputs:
+      test_mode:
+        description: 'Test mode'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  push-hotlist:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run push task
+      run: |
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.test_mode }}" == "true" ]]; then
+          echo "Running in test mode"
+          node index.js --test
+        else
+          echo "Running production push"
+          node index.js
+        fi
+      env:
+        WXPUSHER_APP_TOKEN: ${{ secrets.WXPUSHER_APP_TOKEN }}
+        WXPUSHER_UID: ${{ secrets.WXPUSHER_UID }}
+        TIANAPI_KEY: ${{ secrets.TIANAPI_KEY }}
+        TIANAPI_URL: https://apis.tianapi.com/wxhottopic/index
+        PUSH_HOUR: 9
+        PUSH_MINUTE: 0
+        HOT_LIST_COUNT: 50
+        TZ: Asia/Shanghai
+    
+    - name: Upload logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: push-logs-${{ github.run_number }}
+        path: logs/
+        retention-days: 7
