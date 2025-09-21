@@ -2,10 +2,10 @@ name: 微信热搜榜定时推送
 
 on:
   schedule:
-    # 修正时间：北京时间9:00 (UTC 1:00)
+    # 每天北京时间上午9:00执行 (UTC时间1:00)
     - cron: '0 1 * * *'
-    # 修正时间：北京时间18:00 (UTC 10:00)
-    - cron: '55 13 * * *'
+    # 每天北京时间下午6:00执行 (UTC时间10:00)
+    - cron: '0 10 * * *'
   workflow_dispatch:
     inputs:
       test_mode:
@@ -20,6 +20,7 @@ on:
 jobs:
   push-hotlist:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
     - name: 检出代码
@@ -36,9 +37,8 @@ jobs:
       
     - name: 执行热搜推送
       run: |
-        # 重构条件判断逻辑
         if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.test_mode }}" == "true" ]]; then
-          echo "🧪 执行测试模式推送 (手动触发)"
+          echo "🧪 执行测试模式推送"
           node index.js --test
         else
           echo "🚀 执行正式推送"
