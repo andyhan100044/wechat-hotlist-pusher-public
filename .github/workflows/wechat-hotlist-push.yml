@@ -3,7 +3,7 @@ name: WeChat Hot List Push
 on:
   schedule:
     # 北京时间 8:15 (UTC 1:00)
-    - cron: '43 0 * * *'
+    - cron: '46 0 * * *'
     
     # 北京时间 18:00 (UTC 10:00)
     - cron: '0 10 * * *'
